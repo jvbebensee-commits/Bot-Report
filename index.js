@@ -74,7 +74,7 @@ client.on('interactionCreate', async interaction => {
                 .setPlaceholder('User')
                 .setRequired(true);
 
-            modal.addcomponents(new ActionRowBuilder().addcomponents(nameInput));
+            modal.addComponents(new ActionRowBuilder().addcomponents(nameInput));
             await interaction.showModal(modal);
         }
 
@@ -109,7 +109,7 @@ client.on('interactionCreate', async interaction => {
 
             // Log-Nachricht in einen bestimmten Log-Kanal senden 
             // (Ersetze 'DEIN_LOG_KANAL_ID' mit der echten ID deines #register-logs Kanals)
-            const logChannelId = 'DEIN_LOG_KANAL_ID'; 
+            const logChannelId = '1563990744480489582'; 
             const logChannel = interaction.guild.channels.cache.get(logChannelId);
 
             if (logChannel) {
