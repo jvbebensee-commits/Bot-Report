@@ -26,11 +26,10 @@ client.once('ready', () => {
     console.log(`Eingeloggt als ${client.user.tag}!`);
 });
 
-// 1. Befehl, um das Registrierungs-Embed in den Kanal zu senden (z.B. /registrieren oder im Chat !setup)
+// 1. Befehl, um das Registrierungs-Embed in den Kanal zu senden
 client.on('messageCreate', async message => {
     if (message.author.bot) return;
 
-    // Admin-Befehl zum Erstellen der Registrierungs-Nachricht
     if (message.content === '!setup-register') {
         const embed = new EmbedBuilder()
             .setTitle('Join NOF')
@@ -54,7 +53,6 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
         // Wenn der User auf den "Register"-Button klickt
         if (interaction.customId === 'open_register_modal') {
-            // Prüfen, ob schon registriert
             if (registeredUsers.has(interaction.user.id)) {
                 return interaction.reply({ 
                     content: 'Du hast dich bereits registriert, du kannst dich nicht erneut registrieren!', 
@@ -74,7 +72,8 @@ client.on('interactionCreate', async interaction => {
                 .setPlaceholder('User')
                 .setRequired(true);
 
-            modal.addComponents(new ActionRowBuilder().addcomponents(nameInput));
+            // Hier korrigiert: addComponents mit großem C
+            modal.addComponents(new ActionRowBuilder().addComponents(nameInput));
             await interaction.showModal(modal);
         }
 
@@ -101,14 +100,11 @@ client.on('interactionCreate', async interaction => {
             
             registeredUsers.add(interaction.user.id);
 
-            // Dem User die Bestätigung zeigen
             await interaction.reply({ 
                 content: 'Deine Club-Registrierung wurde an das Team weitergereicht. Du musst warten, bis sie bearbeitet wurde.', 
                 ephemeral: true 
             });
 
-            // Log-Nachricht in einen bestimmten Log-Kanal senden 
-            // (Ersetze 'DEIN_LOG_KANAL_ID' mit der echten ID deines #register-logs Kanals)
             const logChannelId = '1563990744480489582'; 
             const logChannel = interaction.guild.channels.cache.get(logChannelId);
 
