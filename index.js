@@ -1,6 +1,4 @@
-client.on('messageCreate', async message => {
-    console.log("Nachricht empfangen:", message.content); // <-- Das zeigt uns sofort, ob der Bot mitliest!
-    if (message.author.bot) return;
+
     const { 
     Client, 
     GatewayIntentBits, 
@@ -31,6 +29,7 @@ client.once('ready', () => {
 
 // 1. Befehl, um das Registrierungs-Embed in den Kanal zu senden
 client.on('messageCreate', async message => {
+     console.log("Nachricht empfangen:", message.content); // <-- Das zeigt uns sofort, ob der Bot mitliest!
     if (message.author.bot) return;
 
     if (message.content === '!setup-register') {
