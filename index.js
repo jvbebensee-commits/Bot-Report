@@ -1,4 +1,7 @@
-const { 
+client.on('messageCreate', async message => {
+    console.log("Nachricht empfangen:", message.content); // <-- Das zeigt uns sofort, ob der Bot mitliest!
+    if (message.author.bot) return;
+    const { 
     Client, 
     GatewayIntentBits, 
     ActionRowBuilder, 
@@ -135,4 +138,4 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-client.login('MTU2NDMzMTk2NDQ3Mzk0MjA3Nw.GmW_Fp.UnfpN2gaXZ3OvJTnwxyZj9s3uFr_bEYqpRi2KQ');
+client.login('MTU2NDMzMTk2NDQ3Mzk0MjA3Nw.GOi-wC.itIZ5_c24XYg7xeQnw6bdWrSxM72D3EQLJrE-A');
