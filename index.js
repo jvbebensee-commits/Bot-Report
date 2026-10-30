@@ -22,6 +22,7 @@ client.once(Events.ClientReady, async (c) => {
 
 client.on(Events.MessageCreate, async (message) => {
   if (message.author.bot) return;
+  console.log(`Nachricht von ${message.author.tag}: "${message.content}"`);
 
   // erkennt "whats the time", "what's the time", "what is the time" (auch mit iPad-Apostroph)
   if (/what(['’]?s| is) the time/i.test(message.content)) {
