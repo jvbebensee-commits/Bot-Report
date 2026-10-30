@@ -1,133 +1,103 @@
-
-    const { 
-    Client, 
-    GatewayIntentBits, 
-    ActionRowBuilder, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    ModalBuilder, 
-    TextInputBuilder, 
-    TextInputStyle, 
-    EmbedBuilder 
+require('dotenv').config(); // optional, wenn du eine .env nutzt
+const {
+  Client,
+  GatewayIntentBits,
+  Events,
+  EmbedBuilder,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  SlashCommandBuilder,
+  PermissionFlagsBits,
 } = require('discord.js');
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers,
-    ]
+const TOKEN = process.env.TOKEN;
+const LOG_CHANNEL_ID = '1564279226901987498';
+
+// Zeitzonen + die zugehörigen Rollen-IDs (Rollen vorher auf dem Server anlegen)
+const ZONES = [
+  { id: 'CET', label: 'Central European Time (CET)',   roleId: 'ROLLEN_ID_CET' },
+  { id: 'EET', label: 'Eastern European Time (EET)',   roleId: 'ROLLEN_ID_EET' },
+  { id: 'PST', label: 'Pacific Standard Time (PST)',   roleId: 'ROLLEN_ID_PST' },
+  { id: 'UTC', label: 'Coordinated Universal Time (UTC)', roleId: 'ROLLEN_ID_UTC' },
+];
+
+const QUESTION = 'What is your Current Time Zone?';
+
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+client.once(Events.ClientReady, async (c) => {
+  console.log(`Eingeloggt als ${c.user.tag}`);
+
+  const command = new SlashCommandBuilder()
+    .setName('timezone-panel')
+    .setDescription('Postet das Zeitzonen-Auswahlmenü in diesem Channel')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+
+  for (const guild of c.guilds.cache.values()) {
+    await guild.commands.create(command);
+  }
 });
 
-const registeredUsers = new Set();
+client.on(Events.InteractionCreate, async (interaction) => {
+  // 1) Panel posten
+  if (interaction.isChatInputCommand() && interaction.commandName === 'timezone-panel') {
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId('timezone_select')
+      .setPlaceholder('Wähle deine Zeitzone')
+      .addOptions(ZONES.map((z) => ({ label: z.label, value: z.id })));
 
-client.once('ready', () => {
-    console.log(`Eingeloggt als ${client.user.tag}!`);
-});
+    const embed = new EmbedBuilder()
+      .setTitle('Time Zones')
+      .setDescription(QUESTION)
+      .setColor(0x5865f2);
 
-// 1. Befehl, um das Registrierungs-Embed in den Kanal zu senden
-client.on('messageCreate', async message => {
-    if (message.author.bot) return;
+    await interaction.channel.send({
+      embeds: [embed],
+      components: [new ActionRowBuilder().addComponents(menu)],
+    });
+    return interaction.reply({ content: 'Panel gepostet ✅', ephemeral: true });
+  }
 
-    if (message.content === '!setup-register') {
-        const embed = new EmbedBuilder()
-            .setTitle('Join NOF')
-            .setDescription('If you\'d like to join the Team NOF, the First step is to register here.')
-            .setColor(0x0099ff);
+  // 2) Auswahl verarbeiten
+  if (interaction.isStringSelectMenu() && interaction.customId === 'timezone_select') {
+    const selected = interaction.values[0];
+    const member = interaction.member;
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('open_register_modal')
-                .setLabel('Register')
-                .setStyle(ButtonStyle.Success)
-        );
-
-        await message.channel.send({ embeds: [embed], components: [row] });
-        await message.delete();
-    }
-});
-
-// 2. Interaktionen verarbeiten (Buttons & Modals)
-client.on('interactionCreate', async interaction => {
-    if (interaction.isButton()) {
-        if (interaction.customId === 'open_register_modal') {
-            if (registeredUsers.has(interaction.user.id)) {
-                return interaction.reply({ 
-                    content: 'Du hast dich bereits registriert, du kannst dich nicht erneut registrieren!', 
-                    ephemeral: true 
-                });
-            }
-
-            const modal = new ModalBuilder()
-                .setCustomId('register_modal')
-                .setTitle('Registriere dich');
-
-            const nameInput = new TextInputBuilder()
-                .setCustomId('meta_name_input')
-                .setLabel('Please Type your Meta Quest / PCVR Name')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('User')
-                .setRequired(true);
-
-            modal.addComponents(new ActionRowBuilder().addComponents(nameInput));
-            await interaction.showModal(modal);
-        }
-
-        if (interaction.customId === 'accept_user' || interaction.customId === 'reject_user') {
-            const accepted = interaction.customId === 'accept_user';
-            
-            const originalEmbed = interaction.message.embeds[0];
-            const updatedEmbed = EmbedBuilder.from(originalEmbed)
-                .setColor(accepted ? 0x00FF00 : 0xFF0000)
-                .addFields({ name: 'Status', value: accepted ? '✅ Angenommen' : '❌ Abgelehnt' });
-
-            await interaction.update({ 
-                embeds: [updatedEmbed], 
-                components: [] 
-            });
-        }
+    try {
+      // alte Zeitzonen-Rollen entfernen, neue hinzufügen
+      const allRoleIds = ZONES.map((z) => z.roleId);
+      await member.roles.remove(allRoleIds.filter((id) => member.roles.cache.has(id)));
+      await member.roles.add(ZONES.find((z) => z.id === selected).roleId);
+    } catch (err) {
+      console.error(err);
+      return interaction.reply({
+        content: 'Rolle konnte nicht gesetzt werden (Bot-Rechte/Rollenposition prüfen).',
+        ephemeral: true,
+      });
     }
 
-    if (interaction.isModalSubmit()) {
-        if (interaction.customId === 'register_modal') {
-            const enteredName = interaction.fields.getTextInputValue('meta_name_input');
-            
-            registeredUsers.add(interaction.user.id);
+    // Log-Nachricht
+    const logEmbed = new EmbedBuilder()
+      .setColor(0x2b2d31)
+      .addFields(
+        { name: 'Question', value: QUESTION },
+        ...ZONES.map((z) => ({
+          name: z.label,
+          value: z.id === selected ? 'Yes' : 'No',
+        }))
+      );
 
-            await interaction.reply({ 
-                content: 'Deine Club-Registrierung wurde an das Team weitergereicht. Du musst warten, bis sie bearbeitet wurde.', 
-                ephemeral: true 
-            });
+    const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
+    await logChannel.send({
+      content: `<@${interaction.user.id}>`,
+      embeds: [logEmbed],
+    });
 
-            const logChannelId = '1563990744480489582'; 
-            const logChannel = interaction.guild.channels.cache.get(logChannelId);
-
-            if (logChannel) {
-                const logEmbed = new EmbedBuilder()
-                    .setTitle('A person wants to register')
-                    .setDescription('A new club registration is pending for verification. Use the buttons to perform actions.')
-                    .addFields(
-                        { name: 'Member', value: `<@${interaction.user.id}>` },
-                        { name: 'Name', value: enteredName }
-                    )
-                    .setColor(0xFFA500);
-
-                const adminRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('accept_user')
-                        .setLabel('Accept')
-                        .setStyle(ButtonStyle.Success),
-                    new ButtonBuilder()
-                        .setCustomId('reject_user')
-                        .setLabel('Reject')
-                        .setStyle(ButtonStyle.Danger)
-                );
-
-                await logChannel.send({ embeds: [logEmbed], components: [adminRow] });
-            }
-        }
-    }
+    return interaction.reply({
+      content: `Deine Zeitzone wurde auf **${selected}** gesetzt ✅`,
+      ephemeral: true,
+    });
+  }
 });
 
-client.login('MTU2NDMzMTk2NDQ3Mzk0MjA3Nw.GWo07L.7fOthmAf2hOX5mc0-7c3o8tIrTE2sCGAbZRKoU');
+client.login(TOKEN);
