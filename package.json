@@ -1,8 +1,13 @@
 {
-  "name": "bot-report",
+  "name": "game-registration-bot",
   "version": "1.0.0",
+  "description": "Discord Game Registration Bot",
   "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
-    "discord.js": "^14.14.0"
+    "discord.js": "^14.19.3",
+    "dotenv": "^16.4.7"
   }
 }
