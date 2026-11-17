@@ -1,42 +1,153 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Events } = require('discord.js');
 
-const TOKEN = process.env.TOKEN;
+const {
+    Client,
+    GatewayIntentBits,
+    SlashCommandBuilder,
+    REST,
+    Routes,
+    EmbedBuilder
+} = require('discord.js');
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
+    intents: [GatewayIntentBits.Guilds]
 });
 
-client.once(Events.ClientReady, async (c) => {
-  console.log(`Eingeloggt als ${c.user.tag}`);
+// Slash Command
+const commands = [
+    new SlashCommandBuilder()
+        .setName('register-new-game')
+        .setDescription('Register a new game')
 
-  // Entfernt den alten Slash-Command /timezone-panel von deinen Servern
-  for (const guild of c.guilds.cache.values()) {
-    await guild.commands.set([]);
-  }
+        .addStringOption(option =>
+            option.setName('enemy')
+                .setDescription('Enter the enemy team name')
+                .setRequired(true)
+        )
+
+        .addStringOption(option =>
+            option.setName('date')
+                .setDescription('Enter the match date (DD.MM.YYYY)')
+                .setRequired(true)
+        )
+
+        .addStringOption(option =>
+            option.setName('time')
+                .setDescription('Enter the match time (HH:MM)')
+                .setRequired(true)
+        )
+
+        .addStringOption(option =>
+            option.setName('map1')
+                .setDescription('First map')
+                .setRequired(true)
+        )
+
+        .addStringOption(option =>
+            option.setName('map2')
+                .setDescription('Second map')
+                .setRequired(true)
+        )
+
+        .addStringOption(option =>
+            option.setName('map3')
+                .setDescription('Third map')
+                .setRequired(true)
+        )
+        .toJSON()
+];
+
+// Register Slash Commands
+const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+
+async function registerCommands() {
+    try {
+        console.log('Registering Slash Commands...');
+
+        await rest.put(
+            Routes.applicationGuildCommands(
+                process.env.CLIENT_ID,
+                process.env.GUILD_ID
+            ),
+            { body: commands }
+        );
+
+        console.log('Slash Commands successfully registered!');
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+// Bot Ready
+client.once('ready', () => {
+    console.log(`${client.user.tag} is online!`);
 });
 
-client.on(Events.MessageCreate, async (message) => {
-  if (message.author.bot) return;
-  console.log(`Nachricht von ${message.author.tag}: "${message.content}"`);
+// Handle Commands
+client.on('interactionCreate', async interaction => {
 
-  // erkennt "whats the time", "what's the time", "what is the time" (auch mit iPad-Apostroph)
-  if (/what(['’]?s| is) the time/i.test(message.content)) {
-    const now = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/Berlin',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-      timeZoneName: 'short',
-    }).format(new Date());
+    if (!interaction.isChatInputCommand()) return;
 
-    await message.reply(`🕒 Current time: **${now}**`);
-  }
+    if (interaction.commandName === 'register-new-game') {
+
+        const enemy = interaction.options.getString('enemy');
+        const date = interaction.options.getString('date');
+        const time = interaction.options.getString('time');
+
+        const map1 = interaction.options.getString('map1');
+        const map2 = interaction.options.getString('map2');
+        const map3 = interaction.options.getString('map3');
+
+        const embed = new EmbedBuilder()
+            .setColor('#2B2D31')
+            .setTitle('🎮 NEW GAME REGISTERED')
+            .setDescription('A new match has been registered!')
+
+            .addFields(
+                {
+                    name: '👥 Enemy',
+                    value: enemy,
+                    inline: true
+                },
+                {
+                    name: '📅 Date',
+                    value: date,
+                    inline: true
+                },
+                {
+                    name: '🕒 Time',
+                    value: time,
+                    inline: true
+                },
+                {
+                    name: '🗺️ Maps',
+                    value:
+                        `**Map 1:** ${map1}\n` +
+                        `**Map 2:** ${map2}\n` +
+                        `**Map 3:** ${map3}`,
+                    inline: false
+                },
+                {
+                    name: '👤 Registered by',
+                    value: interaction.user.toString(),
+                    inline: false
+                }
+            )
+
+            .setFooter({
+                text: 'Game Registration System'
+            })
+
+            .setTimestamp();
+
+        await interaction.reply({
+            embeds: [embed]
+        });
+    }
 });
 
-client.login(TOKEN);
+// Start Bot
+(async () => {
+    await registerCommands();
+    await client.login(process.env.TOKEN);
+})();
